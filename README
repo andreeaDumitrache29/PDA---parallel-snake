@@ -1,0 +1,83 @@
+Dumitrache Daniela Andreea
+331CB
+Algoritmi paraleli si distribuiti - Tema 1
+
+		~~~~~~~~~~~~ main.h ~~~~~~~~~~~~
+	Am modificat structura de snake pentru a retine si coada sarpelui, nu 
+doar capul. Am facut acest lucru deoarece pentru miscarea sarpelui nu este 
+necesar sa se cunoasca toate puctele componente, ci doar capul si coada, deoarece doar
+ele se modifica.
+
+		~~~~~~~~~~~~ main.h ~~~~~~~~~~~~
+	Functia run_simulation incepe prin a calcula coordonatele cozii pentru toti serpii.
+Acest lucru se desfasoara in paralel pentru fiecare sarpe. Pentru a calcula coordonatele
+folosesc functia CreateComponentList, care, incepand cu capul, parcurge sarpele pozitie
+cu pozitie pana ajunge la ultimul punct fara alt vecin ce face parte din acelasi sarpe
+in afara de directia din care a venit. Acest punct va reprezenta coada si va fi salvat 
+in campul corespunzator sarpelui curent.
+	Apoi, cat timp mai sunt pasi de executat, se apeleaza functia moveSnake care
+muta serpii cu un pas si verifica coliziunea.
+	Pentru mutarea serpilor am folosit un vector de coordonate, newHead, in care voi 
+retine pentru fiecare sarpe pozitia unde trebuie sa se mute capul. Pentru a evita
+cazul in care un sarpe ar trebui sa se mute peste coada unui alt sarpe (nu ar trebui
+sa fie coliziune deoarece celula va deveni libera) voi modifica intai matricea, punand
+0 in pozitiile unde sunt cozile tuturor serpilor in pasul curent (se sterg cozile).
+	Apoi, pentru fiecare sarpe, in paralel, se va calcula pozitia unde trebuie sa
+se mute capul si se va actualiza intrarea din vectorul newHead. Cat timp nu s-a
+detectat nicio coliziune, pe pozitia respectiva din matrice voi completa cu encoding-ul
+sarpelui curent, pentru a marca mutarea capului. Daca unul dintre serpi se muta pe o
+pozitie unde nu este 0 in matrice inseamna ca este in coliziune fie cu un alt sarpe, 
+fie cu el insusi. Din acest punct nu se vor mai muta serpii ce urmeaza a fi analizati.
+	Pentru refacerea matricei in caz de coliziune voi parcurge din nou serpii in
+paralel si, pentru fiecare, voi pune la loc coada pe pozitia initiala, iar daca s-a mutat
+capul (nu mai este 0 in matrice pe pozitia unde sarpele trebuia sa se mute), voi face
+0 la loc in matrice (celula redevine libera).
+	Pentru cazul in care runda a avut loc fara coliziuni voi updata coordonatele
+capului din fiecare snake si voi calcula pozitia noii cozi (tot in paralel pentru fiecare
+snake). Noua coada o calculez folosind functia findTail si bazandu-ma pe faptul ca, 
+la orice moment de timp, coada are un singur vecin din snake-ul curent, vecin care va deveni
+noua coada. Matricea a fost updata cu noile pozitii ale capului inca de la calcularea acestora
+in timpul verificarii coliziunilor, iar cozile au fost sterse la inceput, asa ca nu mai
+sunt necesare alte modificari.
+	Pentru a evita problemele de sincronizare am sters cozile la inceput, in afara
+paralelului, pentru a nu exista cazul ca un thread sa mute pe acea pozitie inainte ca
+altul sa fi apucat sa o stearga. De asemenea, am folosit un vector de lock-uri pentru a
+sincroniza citirea / scrierea din matricea world. Voi seta lock-ul de pe pozitia 
+corespunzatoare sumei liniei + coloanei pozitiei din matrice unde se realizeaza operatia.
+
+
+	Timpi de executie big_input - obtinuti in urma rularii pe fep cu 20k runde: 
+- 1 thread (serial) - media 4.954281607s:
+4.804295377 s
+4.692883817 s
+4.928009443 s
+5.171875970 s
+5.174343431 s
+- 2 threaduri - media 3.3216335796 s
+3.346121586 s
+3.301442436 s
+3.317116537 s
+3.343170990 s
+3.300316349 s
+- 4 threaduri - media 2.338383419:
+2.278438909 s
+2.274889796 s
+2.273071812 s
+2.278620270 s
+2.586896309 s
+- 6 threaduri: media 1.989871201:
+2.154255972
+1.964399184
+1.937650100
+1.925990279
+1.967060470
+- 8 threaduri: media 1.824931343:
+1.958638878
+1.785794503
+1.780343236
+1.820423297
+1.779456803
+
+	Se poate observa ca timpii de executie se imbunatatesc semnificativ odata cu
+cresterea numarului de threaduri (mai putin intre 6 si 8 threaduri unde diferenta nu
+este atat de mare, dar exista), deci algoritmul este scalabil.
